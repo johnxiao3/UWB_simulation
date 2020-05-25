@@ -2,15 +2,15 @@
 
 %% plot the env
 syms x; syms y;
-
+figure;
 xo = [0.15,-0.15,0];
 yo = [0.0,0.0,0.15];
 No = size(xo,2);
 %rescan
 clc
-% for xx = 1:49
-%     for yy = 1:49
-xx = 10; yy = 0;
+for xx = 1:2:50
+    for yy = 1:2:50
+% xx = 10; yy = 0;
 disp([num2str(xx) ',' num2str(yy)])
 subplot(121);
 hold off;
@@ -138,6 +138,40 @@ while(count<2000)
     
     %disp(num2str(count))
     
+    % second improve process
+    phi = [];
+    phi = [phi;atan2((i1y(1)-yo(mincircle)),(i1x(1)-xo(mincircle)))];
+    phi = [phi;atan2((i1y(2)-yo(mincircle)),(i1x(2)-xo(mincircle)))];
+    phi = [phi;atan2((i2y(1)-yo(mincircle)),(i2x(1)-xo(mincircle)))];
+    phi = [phi;atan2((i2y(2)-yo(mincircle)),(i2x(2)-xo(mincircle)))];
+    sorted_phi = sort(phi);
+    
+    dis_phi = diff(sorted_phi);
+    dis_phi = [dis_phi;sorted_phi(1)+2*pi-sorted_phi(4)];
+    [smallest,smallest_in] = min(dis_phi);
+    sort_dis = sort(dis_phi);
+    secondsmall = sort_dis(2);
+    second_in = find(dis_phi == secondsmall);
+    if secondsmall<2*smallest && abs(smallest_in-second_in)==1
+        continue_first_in = min(smallest_in,second_in);
+        newx = xo(mincircle)+d_m(mincircle)*cos(sorted_phi(1+continue_first_in));
+        newy = yo(mincircle)+d_m(mincircle)*sin(sorted_phi(1+continue_first_in));
+        delta_X(end) = newx-xx;
+        delta_Y(end) = newy-yy;
+    elseif secondsmall<1.5*smallest && abs(smallest_in-second_in)==3
+        newx = xo(mincircle)+d_m(mincircle)*cos(sorted_phi(1+0));
+        newy = yo(mincircle)+d_m(mincircle)*sin(sorted_phi(1+0));
+        delta_X(end) = newx-xx;
+        delta_Y(end) = newy-yy;
+    else
+        newx = xo(mincircle)+d_m(mincircle)*cos(0.5*smallest+sorted_phi(smallest_in));
+        newy = yo(mincircle)+d_m(mincircle)*sin(0.5*smallest+sorted_phi(smallest_in));
+        %newx = xo(mincircle)+d_m(mincircle)*cos(sorted_phi(smallest_in));
+        %newy = yo(mincircle)+d_m(mincircle)*sin(sorted_phi(smallest_in));
+        delta_X(end) = newx-xx;
+        delta_Y(end) = newy-yy;
+    end
+    
     % improve process
     dis_1v2 =(delta_X(end)-delta_X0(end))^2+(delta_Y(end)-delta_Y0(end))^2; 
     if dis_1v2>3*allmin
@@ -148,10 +182,12 @@ while(count<2000)
         delta_X(end) = newx-xx;
         delta_Y(end) = newy-yy;
     end
+
     
+
 end
 % plot
-close all;clc;
+clc;
 subplot(241);
 hold on;axis equal;box on;
 title(['likelyhood','(',num2str(xx),',',num2str(yy),')'])
@@ -196,7 +232,7 @@ plot(bins2,F2);
 legend(['RMSE1:',num2str(RMSE1,2)],['RMSE2:',num2str(RMSE2,2)]);
 
 sn = ['likelyhood/' num2str(xx) '-' num2str(yy) '.jpg'];
-% saveas(gca,sn);
-%     end
-% end
+saveas(gca,sn);
+    end
+end
 
