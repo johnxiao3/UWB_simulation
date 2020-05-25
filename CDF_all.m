@@ -43,6 +43,7 @@ delta_Y3 = [];
 delta_X4 = [];
 delta_Y4 = [];
 count = 0;
+R_k = [1 1 1];
 while(count<2000)
     count = count+1;
     for i=1:No
@@ -50,6 +51,7 @@ while(count<2000)
         d_m(i) = d(i)+rand_err(i);
     end
     if min(d_m) == d_m(1)
+        mincircle = 1;
        [i1x i1y] = circcirc(xo(1),yo(1),d_m(1),xo(2),yo(2),d_m(2));
        if isnan(i1x(1))
            i1x(1) = xo(2)*(sqrt(xo(1)^2+yo(1)^2)+d_m(1))/sqrt(xo(2)^2+yo(2)^2);
@@ -67,6 +69,7 @@ while(count<2000)
        p1 = d_m(2);
        p2 = d_m(3);
     elseif min(d_m) == d_m(2)
+         mincircle = 2;
        [i1x i1y] = circcirc(xo(2),yo(2),d_m(2),xo(1),yo(1),d_m(1));
        if isnan(i1x(1))
            i1x(1) = xo(1)*(sqrt(xo(2)^2+yo(2)^2)+d_m(2))/sqrt(xo(1)^2+yo(1)^2);
@@ -84,6 +87,7 @@ while(count<2000)
        p1 = d_m(1);
        p2 = d_m(3);
     elseif min(d_m) == d_m(3)
+         mincircle = 3;
        [i1x i1y] = circcirc(xo(3),yo(3),d_m(3),xo(2),yo(2),d_m(2));
        if isnan(i1x(1))
            i1x(1) = xo(2)*(sqrt(xo(3)^2+yo(3)^2)+d_m(3))/sqrt(xo(2)^2+yo(2)^2);
@@ -123,7 +127,7 @@ while(count<2000)
     end
     delta_X1 = [delta_X1;x_m-xx];
     delta_Y1 = [delta_Y1;y_m-yy];
-    % second improve process
+    % first improve process
     phi = [];
     phi = [phi;atan2((i1y(1)-yo(mincircle)),(i1x(1)-xo(mincircle)))];
     phi = [phi;atan2((i1y(2)-yo(mincircle)),(i1x(2)-xo(mincircle)))];
@@ -155,13 +159,13 @@ while(count<2000)
         delta_X1(end) = newx-xx;
         delta_Y1(end) = newy-yy;
     end
-    % improve process
-    dis_1v2 =(delta_X(end)-delta_X0(end))^2+(delta_Y(end)-delta_Y0(end))^2; 
+    % second improve process
+    dis_1v2 =(delta_X1(end)-delta_X1(end))^2+(delta_Y1(end)-delta_Y1(end))^2; 
     if dis_1v2>3*allmin
-        newx = xo(mincircle)+d_m(mincircle)*(delta_X0(end)+xx-xo(mincircle))/...
-            sqrt((delta_X0(end)+xx-xo(mincircle))^2+(delta_Y0(end)+yy-yo(mincircle))^2);
-        newy = yo(mincircle)+d_m(mincircle)*(delta_Y0(end)+yy-yo(mincircle))/...
-            sqrt((delta_X0(end)+xx-xo(mincircle))^2+(delta_Y0(end)+yy-yo(mincircle))^2);
+        newx = xo(mincircle)+d_m(mincircle)*(delta_X1(end)+xx-xo(mincircle))/...
+            sqrt((delta_X1(end)+xx-xo(mincircle))^2+(delta_Y1(end)+yy-yo(mincircle))^2);
+        newy = yo(mincircle)+d_m(mincircle)*(delta_Y1(end)+yy-yo(mincircle))/...
+            sqrt((delta_X1(end)+xx-xo(mincircle))^2+(delta_Y1(end)+yy-yo(mincircle))^2);
         delta_X1(end) = newx-xx;
         delta_Y1(end) = newy-yy;
     end
@@ -204,6 +208,28 @@ while(count<2000)
     end
     delta_X3 = [delta_X3;R(1)-xx];
     delta_Y3 = [delta_Y3;R(2)-yy];
+    
+    % method 4 kalman filter
+    if count==1
+        P = d_m+1;
+        d_m_k = d_m;
+    end  
+    % Kalman filter and LLS
+    d_mbar = d_m_k;
+    Pbar = P;
+    K=Pbar./(Pbar+R_k);
+    d_m_k=d_mbar+K.*(d_m-d_mbar);
+    P = (1-K).*(Pbar);
+    %  method 4 LLS with Kalman
+    gamma1 = d_m_k(2)^2-d_m_k(1)^2-(xo(2)^2-xo(1)^2+yo(2)^2-yo(1)^2);
+    gamma2 = d_m_k(3)^2-d_m_k(1)^2-(xo(3)^2-xo(1)^2+yo(3)^2-yo(1)^2);
+    A = 2*[xo(1)-xo(2) yo(1)-yo(2)
+       xo(1)-xo(3) yo(1)-yo(3)];
+    tag_m_k = inv(A)*[gamma1;gamma2];
+    x_m0_k = tag_m_k(1);
+    y_m0_k = tag_m_k(2);
+    delta_X4 = [delta_X4;x_m0_k-xx];
+    delta_Y4 = [delta_Y4;y_m0_k-yy];
 end
 % plot
 clc;hold off;
@@ -229,9 +255,16 @@ RMSE3 = sqrt(sum(Acc3.^2)/count);
 F3 = cumsum(h3)/count;
 plot(bins3,F3);
 
+Acc4 = sqrt(delta_X4.^2+delta_Y4.^2);
+RMSE4 = sqrt(sum(Acc4.^2)/count);
+[h4 bins4] = hist(Acc4,100);
+F4 = cumsum(h4)/count;
+plot(bins4,F4);
+
 legend(['RMSE-likelyhood:',num2str(RMSE1,2)],...
     ['RMSE2-LLS:',num2str(RMSE2,2)],...
     ['RMSE2-NLLS:',num2str(RMSE3,2)]...
+    ,['RMSE4-KalmanLLS:',num2str(RMSE4,2)]...
     );
 
 sn = ['likelyhood/' num2str(xx) '-' num2str(yy) '.jpg'];
